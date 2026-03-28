@@ -1,45 +1,48 @@
 # Firebase Security & Setup Guide
 
-Dieses Dokument hilft Ihnen, Ihre Firebase-Datenbank abzusichern und Probleme beim Speichern zu beheben.
+Dieses Dokument hilft Ihnen, Ihre Firebase-Datenbank abzusichern.
 
-## 1. Daten speichern funktioniert nicht? (Security Rules)
+## 1. Firebase Authentication aktivieren (NEU)
 
-Wenn Sie die Meldung "Missing or insufficient permissions" erhalten, sind Ihre Schreibrechte in Firebase deaktiviert.
+Damit nur Sie Zugriff auf Ihre Daten haben, müssen wir den Google-Login aktivieren:
 
-**Lösung:**
 1. Gehen Sie in die [Firebase Console](https://console.firebase.google.com/).
-2. Wählen Sie Ihr Projekt aus.
-3. Klicken Sie links auf **Firestore Database**.
-4. Wechseln Sie zum Tab **Rules** (Regeln).
-5. Ersetzen Sie die vorhandenen Regeln durch diese (für den Anfang):
+2. Klicken Sie links auf **Authentication**.
+3. Klicken Sie auf den Tab **Sign-in method**.
+4. Klicken Sie auf **Add new provider** und wählen Sie **Google**.
+5. Aktivieren Sie den Schalter oben rechts, geben Sie eine Support-E-Mail an und klicken Sie auf **Save**.
+
+## 2. Firestore Security Rules verschärfen
+
+Ersetzen Sie Ihre alten Regeln durch diese, damit jeder Nutzer nur seine **eigenen** Daten sehen kann:
 
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /messungen/{document=**} {
-      // Erlaubt jedem das Lesen und Schreiben (Nur für die Entwicklung!)
-      // Später sollten Sie hier eine Authentifizierung hinzufügen.
-      allow read, write: if true;
+    match /messungen/{document} {
+      // Erlaubt das Lesen/Schreiben nur, wenn der Nutzer angemeldet ist
+      // und die userId im Dokument mit der ID des angemeldeten Nutzers übereinstimmt.
+      allow read, write: if request.auth != null && request.auth.uid == (request.resource.data.userId || resource.data.userId);
     }
   }
 }
 ```
 
-6. Klicken Sie auf **Publish** (Veröffentlichen).
+## 3. Datenbank-Index erstellen
 
-## 2. API-Schlüssel ist öffentlich
+Da wir nun nach `userId` filtern UND nach `zeitpunkt` sortieren, benötigt Firebase einen "zusammengesetzten Index" (Composite Index).
 
-In einer reinen Browser-App (HTML/JS) ist der Schlüssel technisch immer sichtbar. Damit niemand anderes Ihren Schlüssel für seine Projekte nutzt, müssen Sie ihn einschränken.
+1. Wenn in der App die Meldung "Wahrscheinlich fehlt ein Datenbank-Index" erscheint, öffnen Sie die Browser-Konsole (F12).
+2. Dort finden Sie einen Link, der Sie direkt zur Firebase Console führt, um den Index mit einem Klick zu erstellen.
 
-**Lösung (Einschränkung auf Ihre Domain):**
+## 4. API-Schlüssel auf Ihre Domain einschränken
+
+In einer reinen Browser-App (HTML/JS) ist der Schlüssel technisch immer sichtbar.
+
+**Lösung (Einschränkung auf GitHub Pages):**
 1. Gehen Sie zur [Google Cloud Console - API & Services](https://console.cloud.google.com/apis/credentials).
-2. Suchen Sie nach dem Schlüssel (meist "Browser key" oder ähnlich dem in `firebase-config.js`).
-3. Klicken Sie auf den Namen des Schlüssels, um ihn zu bearbeiten.
-4. Unter **Set an application restriction** wählen Sie **Websites**.
-5. Fügen Sie unter **Website restrictions** Ihre Domain hinzu (z. B. `https://ihre-domain.de/*` oder `http://localhost/*` für lokale Tests).
-6. Speichern Sie die Änderungen.
-
-## 3. Lokale Entwicklung (Wichtig!)
-
-Da wir jetzt `type="module"` und separate Dateien verwenden, müssen Sie die `index.html` über einen Webserver starten (z. B. VS Code Extension "Live Server"). Das einfache Doppelklicken auf die Datei im Explorer funktioniert evtl. nicht mehr wegen Sicherheitsbeschränkungen des Browsers für Module.
+2. Klicken Sie auf Ihren API-Schlüssel (AIzaSy...).
+3. Unter **Set an application restriction** wählen Sie **Websites**.
+4. Fügen Sie Ihre GitHub-Pages URL hinzu: `https://waldi969.github.io/*`.
+5. Speichern Sie. (Es kann bis zu 5 Min. dauern, bis die Änderung greift).

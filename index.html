@@ -68,6 +68,17 @@
 		</style>
 	</head>
 	<body>
+		<div id="loginSection" class="card" style="text-align: center; margin-top: 50px;">
+			<h2>Blutdruck Tracker - Login</h2>
+			<p>Bitte melden Sie sich an, um Ihre Daten sicher zu verwalten.</p>
+			<button id="btnLogin" style="background: #4285F4; margin-bottom: 10px;">Mit Google anmelden</button>
+		</div>
+
+		<div id="mainContent" style="display: none;">
+			<div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+				<div>Angemeldet als: <span id="userEmail"></span></div>
+				<button id="btnLogout" style="width: auto; padding: 5px 15px; margin: 0; background: #607d8b;">Abmelden</button>
+			</div>
 		<div class="card">
 			<h2>Werte eintragen</h2>
 			<input
@@ -111,23 +122,59 @@
 			import firebaseConfig from "./firebase-config.js";
 			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 			import {
+				getAuth,
+				signInWithPopup,
+				GoogleAuthProvider,
+				signOut,
+				onAuthStateChanged
+			} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+			import {
 				getFirestore,
 				collection,
 				addDoc,
 				doc,
 				deleteDoc,
 				query,
+				where,
 				orderBy,
 				onSnapshot,
 			} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 			const app = initializeApp(firebaseConfig);
 			const db = getFirestore(app);
+			const auth = getAuth(app);
+			const provider = new GoogleAuthProvider();
 			const messungRef = collection(db, "messungen");
 
-			// Globale Variablen für Chart und Export
+			// Globale Variablen für Chart, Export und Auth
+			let currentUser = null;
 			let messungenData = [];
 			let verlaufChart;
+			let unsubscribeSnapshot = null;
+
+			// Auth-Management
+			onAuthStateChanged(auth, (user) => {
+				if (user) {
+					currentUser = user;
+					document.getElementById("loginSection").style.display = "none";
+					document.getElementById("mainContent").style.display = "block";
+					document.getElementById("userEmail").textContent = user.email;
+					loadData(user.uid);
+				} else {
+					currentUser = null;
+					document.getElementById("loginSection").style.display = "block";
+					document.getElementById("mainContent").style.display = "none";
+					if (unsubscribeSnapshot) unsubscribeSnapshot();
+				}
+			});
+
+			document.getElementById("btnLogin").addEventListener("click", () => {
+				signInWithPopup(auth, provider).catch(e => alert("Login-Fehler: " + e.message));
+			});
+
+			document.getElementById("btnLogout").addEventListener("click", () => {
+				signOut(auth);
+			});
 
 			document // Speicher-Funktion
 				.getElementById("btnSpeichern")
@@ -142,6 +189,7 @@
 					try {
 						console.log("Versuche Daten zu speichern...", { sys, dia, puls });
 						const docRef = await addDoc(messungRef, {
+							userId: currentUser.uid,
 							sys: parseInt(sys),
 							dia: parseInt(dia),
 							puls: parseInt(puls),
@@ -243,41 +291,53 @@
 			}
 
 			// Echtzeit-Anzeige der Daten
-			const q = query(messungRef, orderBy("zeitpunkt", "desc"));
-			onSnapshot(
-				q,
-				(snapshot) => {
-					const messungen = [];
-					let html =
-						"<table><tr><th>Datum</th><th>SYS</th><th>DIA</th><th>Puls</th><th>Aktion</th></tr>";
-					snapshot.forEach((doc) => {
-						const d = doc.data();
-						// Sicherstellen, dass der Eintrag einen Zeitstempel hat, um Fehler zu vermeiden
-						if (d.zeitpunkt && d.zeitpunkt.toDate) {
-							messungen.push(d);
-							const datum = d.zeitpunkt.toDate().toLocaleString("de-DE");
-							const puls = d.puls || "-"; // Fallback für alte Einträge ohne Puls
-							html += `<tr>
-								<td>${datum}</td>
-								<td>${d.sys}</td>
-								<td>${d.dia}</td>
-								<td>${puls}</td>
-								<td><button class="btnDelete" data-id="${doc.id}" style="background: #f44336; padding: 5px 10px; width: auto; font-size: 12px;">Löschen</button></td>
-							</tr>`;
+			function loadData(userId) {
+				const q = query(
+					messungRef, 
+					where("userId", "==", userId),
+					orderBy("zeitpunkt", "desc")
+				);
+				
+				if (unsubscribeSnapshot) unsubscribeSnapshot();
+				
+				unsubscribeSnapshot = onSnapshot(
+					q,
+					(snapshot) => {
+						const messungen = [];
+						let html =
+							"<table><tr><th>Datum</th><th>SYS</th><th>DIA</th><th>Puls</th><th>Aktion</th></tr>";
+						snapshot.forEach((doc) => {
+							const d = doc.data();
+							if (d.zeitpunkt && d.zeitpunkt.toDate) {
+								messungen.push(d);
+								const datum = d.zeitpunkt.toDate().toLocaleString("de-DE");
+								const puls = d.puls || "-";
+								html += `<tr>
+									<td>${datum}</td>
+									<td>${d.sys}</td>
+									<td>${d.dia}</td>
+									<td>${puls}</td>
+									<td><button class="btnDelete" data-id="${doc.id}" style="background: #f44336; padding: 5px 10px; width: auto; font-size: 12px;">Löschen</button></td>
+								</tr>`;
+							}
+						});
+						html += "</table>";
+						document.getElementById("liste").innerHTML = html;
+	
+						messungenData = messungen;
+						createOrUpdateChart(messungen);
+					},
+					(error) => {
+						console.error("Fehler beim Abrufen der Daten: ", error);
+						let msg = "Fehler beim Laden der Historie.";
+						if (error.code === "permission-denied") {
+							msg += "<br>Haben Sie die Security Rules mit userId schon aktiviert?";
 						}
-					});
-					html += "</table>";
-					document.getElementById("liste").innerHTML = html;
-
-					messungenData = messungen; // Daten für Export bereitstellen
-					createOrUpdateChart(messungen); // Chart aktualisieren
-				},
-				(error) => {
-					console.error("Fehler beim Abrufen der Daten: ", error);
-					document.getElementById("liste").innerHTML =
-						`<p style="color: red;"><b>Fehler beim Laden der Historie.</b><br>Bitte prüfen Sie die Browser-Konsole (Taste F12) für Details. Wahrscheinlich fehlt ein Datenbank-Index.</p>`;
-				},
-			);
+						document.getElementById("liste").innerHTML =
+							`<p style="color: red;"><b>${msg}</b><br>Wahrscheinlich fehlt ein Datenbank-Index.</p>`;
+					},
+				);
+			}
 
 			// Delete-Event-Listener (Delegation auf den Container)
 			document.getElementById("liste").addEventListener("click", async (e) => {
@@ -322,5 +382,6 @@
 				doc.save("blutdruck-historie.pdf");
 			});
 		</script>
+		</div>
 	</body>
 </html>
