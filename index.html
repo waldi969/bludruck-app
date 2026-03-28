@@ -114,6 +114,8 @@
 				getFirestore,
 				collection,
 				addDoc,
+				doc,
+				deleteDoc,
 				query,
 				orderBy,
 				onSnapshot,
@@ -247,7 +249,7 @@
 				(snapshot) => {
 					const messungen = [];
 					let html =
-						"<table><tr><th>Datum</th><th>SYS</th><th>DIA</th><th>Puls</th></tr>";
+						"<table><tr><th>Datum</th><th>SYS</th><th>DIA</th><th>Puls</th><th>Aktion</th></tr>";
 					snapshot.forEach((doc) => {
 						const d = doc.data();
 						// Sicherstellen, dass der Eintrag einen Zeitstempel hat, um Fehler zu vermeiden
@@ -255,7 +257,13 @@
 							messungen.push(d);
 							const datum = d.zeitpunkt.toDate().toLocaleString("de-DE");
 							const puls = d.puls || "-"; // Fallback für alte Einträge ohne Puls
-							html += `<tr><td>${datum}</td><td>${d.sys}</td><td>${d.dia}</td><td>${puls}</td></tr>`;
+							html += `<tr>
+								<td>${datum}</td>
+								<td>${d.sys}</td>
+								<td>${d.dia}</td>
+								<td>${puls}</td>
+								<td><button class="btnDelete" data-id="${doc.id}" style="background: #f44336; padding: 5px 10px; width: auto; font-size: 12px;">Löschen</button></td>
+							</tr>`;
 						}
 					});
 					html += "</table>";
@@ -270,6 +278,22 @@
 						`<p style="color: red;"><b>Fehler beim Laden der Historie.</b><br>Bitte prüfen Sie die Browser-Konsole (Taste F12) für Details. Wahrscheinlich fehlt ein Datenbank-Index.</p>`;
 				},
 			);
+
+			// Delete-Event-Listener (Delegation auf den Container)
+			document.getElementById("liste").addEventListener("click", async (e) => {
+				if (e.target.classList.contains("btnDelete")) {
+					const id = e.target.getAttribute("data-id");
+					if (confirm("Diesen Eintrag wirklich löschen?")) {
+						try {
+							await deleteDoc(doc(db, "messungen", id));
+							console.log("Eintrag gelöscht:", id);
+						} catch (error) {
+							console.error("Fehler beim Löschen:", error);
+							alert("Fehler beim Löschen: " + error.message);
+						}
+					}
+				}
+			});
 
 			// Export-Funktion
 			document.getElementById("btnExport").addEventListener("click", () => {
