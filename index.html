@@ -1,83 +1,174 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blutdruck Tracker</title>
-    <style>
-        :root { --primary: #2196F3; --bg: #f4f4f9; }
-        body { font-family: sans-serif; background: var(--bg); margin: 20px; color: #333; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        h2 { color: var(--primary); margin-top: 0; }
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; cursor: pointer; }
-        button.secondary { background: #607D8B; margin-top: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #ddd; }
-    </style>
-</head>
-<body>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Blutdruck Cloud-Tracker</title>
+		<style>
+			:root {
+				--primary: #2196f3;
+				--bg: #f4f4f9;
+			}
+			body {
+				font-family: sans-serif;
+				background: var(--bg);
+				margin: 20px;
+				color: #333;
+			}
+			.card {
+				background: white;
+				padding: 20px;
+				border-radius: 12px;
+				box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+				margin-bottom: 20px;
+			}
+			h2 {
+				color: var(--primary);
+				margin-top: 0;
+			}
+			input {
+				width: 100%;
+				padding: 12px;
+				margin: 8px 0;
+				border: 1px solid #ddd;
+				border-radius: 8px;
+				box-sizing: border-box;
+				font-size: 16px;
+			}
+			button {
+				width: 100%;
+				background: var(--primary);
+				color: white;
+				border: none;
+				padding: 12px;
+				border-radius: 8px;
+				font-size: 16px;
+				cursor: pointer;
+			}
+			button.secondary {
+				background: #607d8b;
+				margin-top: 10px;
+			}
+			table {
+				width: 100%;
+				border-collapse: collapse;
+				margin-top: 20px;
+			}
+			th,
+			td {
+				text-align: left;
+				padding: 10px;
+				border-bottom: 1px solid #ddd;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="card">
+			<h2>Werte eintragen</h2>
+			<input
+				type="number"
+				id="sys"
+				placeholder="Systole (oben) z.B. 120"
+				inputmode="numeric"
+			/>
+			<input
+				type="number"
+				id="dia"
+				placeholder="Diastole (unten) z.B. 80"
+				inputmode="numeric"
+			/>
+			<input
+				type="number"
+				id="puls"
+				placeholder="Puls z.B. 70"
+				inputmode="numeric"
+			/>
+			<button id="btnSpeichern">In Cloud speichern</button>
+		</div>
 
-    <div class="card">
-        <h2>Werte eintragen</h2>
-        <input type="number" id="sys" placeholder="Systole (oben) z.B. 120" inputmode="numeric">
-        <input type="number" id="dia" placeholder="Diastole (unten) z.B. 80" inputmode="numeric">
-        <input type="number" id="puls" placeholder="Puls z.B. 70" inputmode="numeric">
-        <button onclick="speichern()">Speichern</button>
-    </div>
+		<div class="card">
+			<h2>Deine Historie (Cloud)</h2>
+			<div id="liste">Verbinde mit Datenbank...</div>
+			<button class="secondary" onclick="exportieren()">
+				Als PDF (Vorbereitung)
+			</button>
+		</div>
 
-    <div class="card">
-        <h2>Deine Historie</h2>
-        <div id="liste">Lade Daten...</div>
-        <button class="secondary" onclick="exportieren()">Als PDF (Vorbereitung)</button>
-    </div>
+		<script type="module">
+			// 1. Firebase Bibliotheken importieren
+			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+			import {
+				getFirestore,
+				collection,
+				addDoc,
+				query,
+				orderBy,
+				onSnapshot,
+			} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    <script>
-        // Funktion zum Speichern der Daten
-        function speichern() {
-            const sys = document.getElementById('sys').value;
-            const dia = document.getElementById('dia').value;
-            const puls = document.getElementById('puls').value;
-            const datum = new Date().toLocaleString('de-DE');
+			// 2. Deine Konfiguration (war korrekt!)
+			const firebaseConfig = {
+				apiKey: "AIzaSyCe0UHiualJOGmsCzNvzFTw8SKMjeYRhSw",
+				authDomain: "blutdruck-app-f5cd5.firebaseapp.com",
+				projectId: "blutdruck-app-f5cd5",
+				storageBucket: "blutdruck-app-f5cd5.firebasestorage.app",
+				messagingSenderId: "1065023739171",
+				appId: "1:1065023739171:web:fab3b38c155909ae44e896",
+				measurementId: "G-NS9S2LMRY5",
+			};
 
-            if(!sys || !dia || !puls) return alert("Bitte alle Felder ausfüllen!");
+			// 3. Firebase initialisieren
+			const app = initializeApp(firebaseConfig);
+			const db = getFirestore(app);
+			const messungRef = collection(db, "messungen");
 
-            const eintrag = { sys, dia, puls, datum };
-            
-            // Bestehende Daten laden oder leeres Array erstellen
-            let daten = JSON.parse(localStorage.getItem('blutdruckDaten') || '[]');
-            daten.push(eintrag);
-            
-            // Zurück in den LocalStorage speichern
-            localStorage.setItem('blutdruckDaten', JSON.stringify(daten));
-            
-            // Formular leeren und Anzeige aktualisieren
-            document.getElementById('sys').value = '';
-            document.getElementById('dia').value = '';
-            document.getElementById('puls').value = '';
-            anzeigen();
-        }
+			// 4. Speicher-Funktion
+			document
+				.getElementById("btnSpeichern")
+				.addEventListener("click", async () => {
+					const sys = document.getElementById("sys").value;
+					const dia = document.getElementById("dia").value;
+					const puls = document.getElementById("puls").value;
 
-        // Funktion zum Anzeigen der Tabelle
-        function anzeigen() {
-            let daten = JSON.parse(localStorage.getItem('blutdruckDaten') || '[]');
-            let html = '<table><tr><th>Datum</th><th>SYS</th><th>DIA</th></tr>';
-            
-            // Die letzten 5 Einträge anzeigen (umgekehrt chronologisch)
-            daten.slice().reverse().slice(0, 5).forEach(e => {
-                html += `<tr><td>${e.datum}</td><td>${e.sys}</td><td>${e.dia}</td></tr>`;
-            });
-            
-            html += '</table>';
-            document.getElementById('liste').innerHTML = html;
-        }
+					if (!sys || !dia || !puls)
+						return alert("Bitte alle Felder ausfüllen!");
 
-        function exportieren() {
-            alert("Hier binden wir im nächsten Schritt die PDF-Funktion ein!");
-        }
+					try {
+						await addDoc(messungRef, {
+							sys: parseInt(sys),
+							dia: parseInt(dia),
+							puls: parseInt(puls),
+							zeitpunkt: new Date(),
+						});
+						// Felder leeren
+						document.getElementById("sys").value = "";
+						document.getElementById("dia").value = "";
+						document.getElementById("puls").value = "";
+					} catch (e) {
+						alert("Fehler beim Speichern: " + e.message);
+					}
+				});
 
-        // Beim Laden der Seite Tabelle anzeigen
-        anzeigen();
-    </script>
-</body>
+			// 5. Echtzeit-Anzeige der Daten
+			const q = query(messungRef, orderBy("zeitpunkt", "desc"));
+			onSnapshot(q, (snapshot) => {
+				let html = "<table><tr><th>Datum</th><th>SYS</th><th>DIA</th></tr>";
+				snapshot.forEach((doc) => {
+					const d = doc.data();
+					const datum = d.zeitpunkt
+						? d.zeitpunkt.toDate().toLocaleString("de-DE")
+						: "Lädt...";
+					html += `<tr><td>${datum}</td><td>${d.sys}</td><td>${d.dia}</td></tr>`;
+				});
+				html += "</table>";
+				document.getElementById("liste").innerHTML = html;
+			});
+		</script>
+
+		<script>
+			function exportieren() {
+				alert("Hier binden wir im nächsten Schritt die PDF-Funktion ein!");
+			}
+		</script>
+	</body>
 </html>
