@@ -68,320 +68,375 @@
 		</style>
 	</head>
 	<body>
-		<div id="loginSection" class="card" style="text-align: center; margin-top: 50px;">
+		<div
+			id="loginSection"
+			class="card"
+			style="text-align: center; margin-top: 50px"
+		>
 			<h2>Blutdruck Tracker - Login</h2>
 			<p>Bitte melden Sie sich an, um Ihre Daten sicher zu verwalten.</p>
-			<button id="btnLogin" style="background: #4285F4; margin-bottom: 10px;">Mit Google anmelden</button>
+			<button id="btnLogin" style="background: #4285f4; margin-bottom: 10px">
+				Mit Google anmelden
+			</button>
 		</div>
 
-		<div id="mainContent" style="display: none;">
-			<div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+		<div id="mainContent" style="display: none">
+			<div
+				class="card"
+				style="
+					display: flex;
+					justify-content: space-between;
+					align-items: center;
+				"
+			>
 				<div>Angemeldet als: <span id="userEmail"></span></div>
-				<button id="btnLogout" style="width: auto; padding: 5px 15px; margin: 0; background: #607d8b;">Abmelden</button>
+				<button
+					id="btnLogout"
+					style="width: auto; padding: 5px 15px; margin: 0; background: #607d8b"
+				>
+					Abmelden
+				</button>
 			</div>
-		<div class="card">
-			<h2>Werte eintragen</h2>
-			<input
-				type="number"
-				id="sys"
-				placeholder="Systole (oben) z.B. 120"
-				inputmode="numeric"
-			/>
-			<input
-				type="number"
-				id="dia"
-				placeholder="Diastole (unten) z.B. 80"
-				inputmode="numeric"
-			/>
-			<input
-				type="number"
-				id="puls"
-				placeholder="Puls z.B. 70"
-				inputmode="numeric"
-			/>
-			<button id="btnSpeichern">In Cloud speichern</button>
-		</div>
-
-		<div class="card">
-			<h2>Verlauf</h2>
-			<div class="chart-container">
-				<canvas id="verlaufChart"></canvas>
+			<div class="card">
+				<h2>Werte eintragen</h2>
+				<input
+					type="number"
+					id="sys"
+					placeholder="Systole (oben) z.B. 120"
+					inputmode="numeric"
+				/>
+				<input
+					type="number"
+					id="dia"
+					placeholder="Diastole (unten) z.B. 80"
+					inputmode="numeric"
+				/>
+				<input
+					type="number"
+					id="puls"
+					placeholder="Puls z.B. 70"
+					inputmode="numeric"
+				/>
+				<button id="btnSpeichern">In Cloud speichern</button>
 			</div>
-		</div>
 
-		<div class="card">
-			<h2>Deine Historie (Cloud)</h2>
-			<div id="liste">Verbinde mit Datenbank...</div>
-			<button id="btnExport" class="secondary">Als PDF exportieren</button>
-		</div>
+			<div class="card">
+				<h2>Verlauf</h2>
+				<div class="chart-container">
+					<canvas id="verlaufChart"></canvas>
+				</div>
+			</div>
 
-		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf-autotable.min.js"></script>
-		<script type="module">
-			import firebaseConfig from "./firebase-config.js";
-			import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-			import {
-				getAuth,
-				signInWithPopup,
-				GoogleAuthProvider,
-				signOut,
-				onAuthStateChanged
-			} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-			import {
-				getFirestore,
-				collection,
-				addDoc,
-				doc,
-				deleteDoc,
-				query,
-				where,
-				orderBy,
-				onSnapshot,
-			} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+			<div class="card">
+				<h2>Deine Historie (Cloud)</h2>
+				<div id="liste">Verbinde mit Datenbank...</div>
+				<button id="btnExport" class="secondary">Als PDF exportieren</button>
+			</div>
 
-			const app = initializeApp(firebaseConfig);
-			const db = getFirestore(app);
-			const auth = getAuth(app);
-			const provider = new GoogleAuthProvider();
-			const messungRef = collection(db, "messungen");
+			<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+			<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+			<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf-autotable.min.js"></script>
+			<script type="module">
+				import firebaseConfig from "./firebase-config.js";
+				import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+				import {
+					getAuth,
+					signInWithPopup,
+					GoogleAuthProvider,
+					signOut,
+					onAuthStateChanged,
+				} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+				import {
+					getFirestore,
+					collection,
+					addDoc,
+					doc,
+					deleteDoc,
+					query,
+					where,
+					orderBy,
+					onSnapshot,
+				} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-			// Globale Variablen für Chart, Export und Auth
-			let currentUser = null;
-			let messungenData = [];
-			let verlaufChart;
-			let unsubscribeSnapshot = null;
+				const app = initializeApp(firebaseConfig);
+				const db = getFirestore(app);
+				const auth = getAuth(app);
+				const provider = new GoogleAuthProvider();
+				const messungRef = collection(db, "messungen");
 
-			// Auth-Management
-			onAuthStateChanged(auth, (user) => {
-				if (user) {
-					currentUser = user;
-					document.getElementById("loginSection").style.display = "none";
-					document.getElementById("mainContent").style.display = "block";
-					document.getElementById("userEmail").textContent = user.email;
-					loadData(user.uid);
-				} else {
-					currentUser = null;
-					document.getElementById("loginSection").style.display = "block";
-					document.getElementById("mainContent").style.display = "none";
-					if (unsubscribeSnapshot) unsubscribeSnapshot();
-				}
-			});
+				// Globale Variablen für Chart, Export und Auth
+				let currentUser = null;
+				let messungenData = [];
+				let verlaufChart;
+				let unsubscribeSnapshot = null;
 
-			document.getElementById("btnLogin").addEventListener("click", () => {
-				signInWithPopup(auth, provider).catch(e => alert("Login-Fehler: " + e.message));
-			});
-
-			document.getElementById("btnLogout").addEventListener("click", () => {
-				signOut(auth);
-			});
-
-			document // Speicher-Funktion
-				.getElementById("btnSpeichern")
-				.addEventListener("click", async () => {
-					const sys = document.getElementById("sys").value;
-					const dia = document.getElementById("dia").value;
-					const puls = document.getElementById("puls").value;
-
-					if (!sys || !dia || !puls)
-						return alert("Bitte alle Felder ausfüllen!");
-
-					try {
-						console.log("Versuche Daten zu speichern...", { sys, dia, puls });
-						const docRef = await addDoc(messungRef, {
-							userId: currentUser.uid,
-							sys: parseInt(sys),
-							dia: parseInt(dia),
-							puls: parseInt(puls),
-							zeitpunkt: new Date(),
-						});
-						console.log("Erfolgreich gespeichert! Dokumenten-ID:", docRef.id);
-
-						// Felder leeren
-						document.getElementById("sys").value = "";
-						document.getElementById("dia").value = "";
-						document.getElementById("puls").value = "";
-					} catch (e) {
-						console.error("Fehler beim Speichern detailiert:", e);
-						let msg = "Fehler beim Speichern: " + e.message;
-						if (e.code === "permission-denied") {
-							msg += "\n\n(Prüfen Sie Ihre Firebase Security Rules! Wahrscheinlich fehlt die Schreibberechtigung.)";
-						}
-						alert(msg);
+				// Auth-Management
+				onAuthStateChanged(auth, (user) => {
+					if (user) {
+						currentUser = user;
+						document.getElementById("loginSection").style.display = "none";
+						document.getElementById("mainContent").style.display = "block";
+						document.getElementById("userEmail").textContent = user.email;
+						loadData(user.uid);
+					} else {
+						currentUser = null;
+						document.getElementById("loginSection").style.display = "block";
+						document.getElementById("mainContent").style.display = "none";
+						if (unsubscribeSnapshot) unsubscribeSnapshot();
 					}
 				});
 
-			// Chart-Funktion
-			function createOrUpdateChart(data) {
-				const ctx = document.getElementById("verlaufChart").getContext("2d");
-				const labels = data
-					.map((d) =>
-						d.zeitpunkt
-							? d.zeitpunkt.toDate().toLocaleString("de-DE", {
-									day: "2-digit",
-									month: "2-digit",
-									hour: "2-digit",
-									minute: "2-digit",
-								})
-							: "",
-					)
-					.reverse();
-				const sysData = data.map((d) => d.sys).reverse();
-				const diaData = data.map((d) => d.dia).reverse();
-				const pulsData = data.map((d) => d.puls).reverse();
+				document.getElementById("btnLogin").addEventListener("click", () => {
+					signInWithPopup(auth, provider).catch((e) =>
+						alert("Login-Fehler: " + e.message),
+					);
+				});
 
-				if (verlaufChart) {
-					verlaufChart.data.labels = labels;
-					verlaufChart.data.datasets[0].data = sysData;
-					verlaufChart.data.datasets[1].data = diaData;
-					verlaufChart.data.datasets[2].data = pulsData;
-					verlaufChart.update();
-				} else {
-					verlaufChart = new Chart(ctx, {
-						type: "line",
-						data: {
-							labels: labels,
-							datasets: [
-								{
-									label: "Systole",
-									data: sysData,
-									borderColor: "#f44336",
-									backgroundColor: "#f4433633",
-									fill: true,
-									tension: 0.2,
-								},
-								{
-									label: "Diastole",
-									data: diaData,
-									borderColor: "#2196f3",
-									backgroundColor: "#2196f333",
-									fill: true,
-									tension: 0.2,
-								},
-								{
-									label: "Puls",
-									data: pulsData,
-									borderColor: "#4caf50",
-									backgroundColor: "#4caf5033",
-									fill: true,
-									tension: 0.2,
-									yAxisID: "y1", // Sekundäre Achse für Puls
-								},
-							],
-						},
-						options: {
-							responsive: true,
-							maintainAspectRatio: false,
-							scales: {
-								y: {
-									beginAtZero: false,
-									position: "left",
-									title: { display: true, text: "Blutdruck (mmHg)" },
-								},
-								y1: {
-									beginAtZero: false,
-									position: "right",
-									title: { display: true, text: "Puls (bpm)" },
-									grid: { drawOnChartArea: false },
+				document.getElementById("btnLogout").addEventListener("click", () => {
+					signOut(auth);
+				});
+
+				document // Speicher-Funktion
+					.getElementById("btnSpeichern")
+					.addEventListener("click", async () => {
+						const sys = document.getElementById("sys").value;
+						const dia = document.getElementById("dia").value;
+						const puls = document.getElementById("puls").value;
+
+						if (!sys || !dia || !puls)
+							return alert("Bitte alle Felder ausfüllen!");
+
+						try {
+							console.log("Versuche Daten zu speichern...", { sys, dia, puls });
+							const docRef = await addDoc(messungRef, {
+								userId: currentUser.uid,
+								sys: parseInt(sys),
+								dia: parseInt(dia),
+								puls: parseInt(puls),
+								zeitpunkt: new Date(),
+							});
+							console.log("Erfolgreich gespeichert! Dokumenten-ID:", docRef.id);
+
+							// Felder leeren
+							document.getElementById("sys").value = "";
+							document.getElementById("dia").value = "";
+							document.getElementById("puls").value = "";
+						} catch (e) {
+							console.error("Fehler beim Speichern detailiert:", e);
+							let msg = "Fehler beim Speichern: " + e.message;
+							if (e.code === "permission-denied") {
+								msg +=
+									"\n\n(Prüfen Sie Ihre Firebase Security Rules! Wahrscheinlich fehlt die Schreibberechtigung.)";
+							}
+							alert(msg);
+						}
+					});
+
+				// Chart-Funktion
+				function createOrUpdateChart(data) {
+					const ctx = document.getElementById("verlaufChart").getContext("2d");
+					const labels = data
+						.map((d) =>
+							d.zeitpunkt
+								? d.zeitpunkt.toDate().toLocaleString("de-DE", {
+										day: "2-digit",
+										month: "2-digit",
+										hour: "2-digit",
+										minute: "2-digit",
+									})
+								: "",
+						)
+						.reverse();
+					const sysData = data.map((d) => d.sys).reverse();
+					const diaData = data.map((d) => d.dia).reverse();
+					const pulsData = data.map((d) => d.puls).reverse();
+
+					if (verlaufChart) {
+						verlaufChart.data.labels = labels;
+						verlaufChart.data.datasets[0].data = sysData;
+						verlaufChart.data.datasets[1].data = diaData;
+						verlaufChart.data.datasets[2].data = pulsData;
+						verlaufChart.update();
+					} else {
+						verlaufChart = new Chart(ctx, {
+							type: "line",
+							data: {
+								labels: labels,
+								datasets: [
+									{
+										label: "Systole",
+										data: sysData,
+										borderColor: "#f44336",
+										backgroundColor: "#f4433633",
+										fill: true,
+										tension: 0.2,
+									},
+									{
+										label: "Diastole",
+										data: diaData,
+										borderColor: "#2196f3",
+										backgroundColor: "#2196f333",
+										fill: true,
+										tension: 0.2,
+									},
+									{
+										label: "Puls",
+										data: pulsData,
+										borderColor: "#4caf50",
+										backgroundColor: "#4caf5033",
+										fill: true,
+										tension: 0.2,
+										yAxisID: "y1", // Sekundäre Achse für Puls
+									},
+								],
+							},
+							options: {
+								responsive: true,
+								maintainAspectRatio: false,
+								scales: {
+									y: {
+										beginAtZero: false,
+										position: "left",
+										title: { display: true, text: "Blutdruck (mmHg)" },
+									},
+									y1: {
+										beginAtZero: false,
+										position: "right",
+										title: { display: true, text: "Puls (bpm)" },
+										grid: { drawOnChartArea: false },
+									},
 								},
 							},
-						},
-					});
+						});
+					}
 				}
-			}
 
-			// Echtzeit-Anzeige der Daten
-			function loadData(userId) {
-				const q = query(
-					messungRef, 
-					where("userId", "==", userId),
-					orderBy("zeitpunkt", "desc")
-				);
-				
-				if (unsubscribeSnapshot) unsubscribeSnapshot();
-				
-				unsubscribeSnapshot = onSnapshot(
-					q,
-					(snapshot) => {
-						const messungen = [];
-						let html =
-							"<table><tr><th>Datum</th><th>SYS</th><th>DIA</th><th>Puls</th><th>Aktion</th></tr>";
-						snapshot.forEach((doc) => {
-							const d = doc.data();
-							if (d.zeitpunkt && d.zeitpunkt.toDate) {
-								messungen.push(d);
-								const datum = d.zeitpunkt.toDate().toLocaleString("de-DE");
-								const puls = d.puls || "-";
-								html += `<tr>
+				// Echtzeit-Anzeige der Daten
+				function loadData(userId) {
+					const q = query(
+						messungRef,
+						where("userId", "==", userId),
+						orderBy("zeitpunkt", "desc"),
+					);
+
+					if (unsubscribeSnapshot) unsubscribeSnapshot();
+
+					unsubscribeSnapshot = onSnapshot(
+						q,
+						(snapshot) => {
+							const messungen = [];
+							let html =
+								"<table><tr><th>Datum</th><th>SYS</th><th>DIA</th><th>Puls</th><th>Aktion</th></tr>";
+							snapshot.forEach((doc) => {
+								const d = doc.data();
+								if (d.zeitpunkt && d.zeitpunkt.toDate) {
+									messungen.push(d);
+									const datum = d.zeitpunkt.toDate().toLocaleString("de-DE");
+									const puls = d.puls || "-";
+									html += `<tr>
 									<td>${datum}</td>
 									<td>${d.sys}</td>
 									<td>${d.dia}</td>
 									<td>${puls}</td>
 									<td><button class="btnDelete" data-id="${doc.id}" style="background: #f44336; padding: 5px 10px; width: auto; font-size: 12px;">Löschen</button></td>
 								</tr>`;
+								}
+							});
+							html += "</table>";
+							document.getElementById("liste").innerHTML = html;
+
+							messungenData = messungen;
+							createOrUpdateChart(messungen);
+						},
+						(error) => {
+							console.error("Fehler beim Abrufen der Daten: ", error);
+							let msg = "Fehler beim Laden der Historie.";
+							if (error.code === "permission-denied") {
+								msg +=
+									"<br>Haben Sie die Security Rules mit userId schon aktiviert?";
 							}
+							document.getElementById("liste").innerHTML =
+								`<p style="color: red;"><b>${msg}</b><br>Wahrscheinlich fehlt ein Datenbank-Index.</p>`;
+						},
+					);
+				}
+
+				// Delete-Event-Listener (Delegation auf den Container)
+				document
+					.getElementById("liste")
+					.addEventListener("click", async (e) => {
+						if (e.target.classList.contains("btnDelete")) {
+							const id = e.target.getAttribute("data-id");
+							if (confirm("Diesen Eintrag wirklich löschen?")) {
+								try {
+									await deleteDoc(doc(db, "messungen", id));
+									console.log("Eintrag gelöscht:", id);
+								} catch (error) {
+									console.error("Fehler beim Löschen:", error);
+									alert("Fehler beim Löschen: " + error.message);
+								}
+							}
+						}
+					});
+
+				// Export-Funktion
+				document
+					.getElementById("btnExport")
+					.addEventListener("click", async () => {
+						if (messungenData.length === 0) {
+							return alert("Keine Daten zum Exportieren vorhanden.");
+						}
+
+						const { jsPDF } = window.jspdf;
+						const doc = new jsPDF();
+						const pdfFileName = "blutdruck-historie.pdf";
+
+						doc.text("Blutdruck-Historie", 14, 16);
+
+						// Die Daten sind von Firestore absteigend sortiert (neuestes zuerst).
+						// Für den PDF-Export drehen wir die Reihenfolge um (ältestes zuerst).
+						const tableData = [...messungenData]
+							.reverse()
+							.map((d) => [
+								d.zeitpunkt.toDate().toLocaleString("de-DE"),
+								d.sys,
+								d.dia,
+								d.puls || "-",
+							]);
+
+						doc.autoTable({
+							head: [
+								["Datum", "Systole (mmHg)", "Diastole (mmHg)", "Puls (bpm)"],
+							],
+							body: tableData,
+							startY: 20,
 						});
-						html += "</table>";
-						document.getElementById("liste").innerHTML = html;
-	
-						messungenData = messungen;
-						createOrUpdateChart(messungen);
-					},
-					(error) => {
-						console.error("Fehler beim Abrufen der Daten: ", error);
-						let msg = "Fehler beim Laden der Historie.";
-						if (error.code === "permission-denied") {
-							msg += "<br>Haben Sie die Security Rules mit userId schon aktiviert?";
+
+						// Prüfen, ob die Web Share API für Dateien verfügbar ist (mobil)
+						const pdfFile = new File([doc.output("blob")], pdfFileName, {
+							type: "application/pdf",
+						});
+						if (
+							navigator.canShare &&
+							navigator.canShare({ files: [pdfFile] })
+						) {
+							try {
+								await navigator.share({
+									files: [pdfFile],
+									title: "Blutdruck-Historie",
+								});
+							} catch (error) {
+								console.log(
+									"Teilen vom Nutzer abgebrochen oder fehlgeschlagen:",
+									error,
+								);
+							}
+						} else {
+							// Fallback für Desktop-Browser oder wenn Teilen nicht unterstützt wird
+							doc.save(pdfFileName);
 						}
-						document.getElementById("liste").innerHTML =
-							`<p style="color: red;"><b>${msg}</b><br>Wahrscheinlich fehlt ein Datenbank-Index.</p>`;
-					},
-				);
-			}
-
-			// Delete-Event-Listener (Delegation auf den Container)
-			document.getElementById("liste").addEventListener("click", async (e) => {
-				if (e.target.classList.contains("btnDelete")) {
-					const id = e.target.getAttribute("data-id");
-					if (confirm("Diesen Eintrag wirklich löschen?")) {
-						try {
-							await deleteDoc(doc(db, "messungen", id));
-							console.log("Eintrag gelöscht:", id);
-						} catch (error) {
-							console.error("Fehler beim Löschen:", error);
-							alert("Fehler beim Löschen: " + error.message);
-						}
-					}
-				}
-			});
-
-			// Export-Funktion
-			document.getElementById("btnExport").addEventListener("click", () => {
-				if (messungenData.length === 0) {
-					return alert("Keine Daten zum Exportieren vorhanden.");
-				}
-
-				const { jsPDF } = window.jspdf;
-				const doc = new jsPDF();
-
-				doc.text("Blutdruck-Historie", 14, 16);
-
-				const tableData = messungenData.map((d) => [
-					d.zeitpunkt.toDate().toLocaleString("de-DE"),
-					d.sys,
-					d.dia,
-					d.puls,
-				]);
-
-				doc.autoTable({
-					head: [["Datum", "Systole (mmHg)", "Diastole (mmHg)", "Puls (bpm)"]],
-					body: tableData,
-					startY: 20,
-				});
-
-				doc.save("blutdruck-historie.pdf");
-			});
-		</script>
+					});
+			</script>
 		</div>
 	</body>
 </html>
