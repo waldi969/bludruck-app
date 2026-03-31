@@ -135,11 +135,7 @@
 
 			<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 			<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-			<!-- Workaround: Sicherstellen, dass der jsPDF-Konstruktor global als window.jsPDF verfügbar ist,
-			     damit jspdf-autotable ihn korrekt erweitern kann. -->
-			<script>
-				window.jsPDF = window.jspdf.jsPDF;
-			</script>
+			<!-- jspdf-autotable sollte jspdf.umd.min.js automatisch erweitern -->
 			<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf-autotable.min.js"></script>
 			<script type="module">
 				import firebaseConfig from "./firebase-config.js";
@@ -393,8 +389,8 @@
 							return alert("Keine Daten zum Exportieren vorhanden.");
 						}
 
-						const jsPDF = window.jsPDF; // Den global verfügbaren jsPDF-Konstruktor verwenden
-						const doc = new jsPDF();
+						// Verwende den jsPDF-Konstruktor direkt aus dem jspdf-Namespace
+						const doc = new window.jspdf.jsPDF();
 						const pdfFileName = "blutdruck-historie.pdf";
 
 						doc.text("Blutdruck-Auflistung", 14, 16);
