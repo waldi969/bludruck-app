@@ -235,8 +235,10 @@
 				// Chart-Funktion
 				function createOrUpdateChart(data) {
 					const ctx = document.getElementById("verlaufChart").getContext("2d");
-					const labels = data
-						.map((d) =>
+					const labels = data.map(
+						(
+							d, // Daten sind jetzt schon ältestes zuerst, kein .reverse() mehr nötig
+						) =>
 							d.zeitpunkt
 								? d.zeitpunkt.toDate().toLocaleString("de-DE", {
 										day: "2-digit",
@@ -245,11 +247,10 @@
 										minute: "2-digit",
 									})
 								: "",
-						)
-						.reverse();
-					const sysData = data.map((d) => d.sys).reverse();
-					const diaData = data.map((d) => d.dia).reverse();
-					const pulsData = data.map((d) => d.puls).reverse();
+					);
+					const sysData = data.map((d) => d.sys);
+					const diaData = data.map((d) => d.dia);
+					const pulsData = data.map((d) => d.puls);
 
 					if (verlaufChart) {
 						verlaufChart.data.labels = labels;
@@ -316,7 +317,7 @@
 					const q = query(
 						messungRef,
 						where("userId", "==", userId),
-						orderBy("zeitpunkt", "desc"),
+						orderBy("zeitpunkt", "asc"), // Jetzt ältestes zuerst
 					);
 
 					if (unsubscribeSnapshot) unsubscribeSnapshot();
@@ -395,14 +396,13 @@
 
 						// Die Daten sind von Firestore absteigend sortiert (neuestes zuerst).
 						// Für den PDF-Export drehen wir die Reihenfolge um (ältestes zuerst).
-						const tableData = [...messungenData]
-							.reverse()
-							.map((d) => [
-								d.zeitpunkt.toDate().toLocaleString("de-DE"),
-								d.sys,
-								d.dia,
-								d.puls || "-",
-							]);
+						// Da die Daten jetzt schon ältestes zuerst sind, ist kein .reverse() mehr nötig.
+						const tableData = messungenData.map((d) => [
+							d.zeitpunkt.toDate().toLocaleString("de-DE"),
+							d.sys,
+							d.dia,
+							d.puls || "-",
+						]);
 
 						doc.autoTable({
 							head: [
